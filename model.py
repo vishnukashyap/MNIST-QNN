@@ -13,11 +13,14 @@ class LinearModel(torch.nn.Module):
 
 		input_channels = dataset_input_channels_linear[dataset_name]
 
+		self.number_of_hidden_units = 3
+
 		self.input_layer = torch.nn.Sequential(*[
 			torch.nn.Linear(
 				in_features=input_channels,
 				out_features=128,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=128),
 			torch.nn.ReLU()])
 
 		self.hidden_layer = torch.nn.Sequential(*[
@@ -25,6 +28,7 @@ class LinearModel(torch.nn.Module):
 				in_features=128,
 				out_features=128,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=128),
 			torch.nn.ReLU()])
 
 		self.output_layer = torch.nn.Sequential(*[
@@ -32,6 +36,7 @@ class LinearModel(torch.nn.Module):
 				in_features=128,
 				out_features=10,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=10),
 			torch.nn.Sigmoid()])
 
 	def forward(self,input_tensor):
@@ -55,11 +60,14 @@ class LeNet(torch.nn.Module):
 
 		input_channels = dataset_input_channels_conv[dataset_name]
 
+		self.number_of_hidden_units = 5
+
 		self.Conv1 = torch.nn.Sequential(*[
 			torch.nn.Conv2d(
 				in_channels=input_channels,
 				out_channels=6,
 				kernel_size=5),
+			torch.nn.BatchNorm2d(num_features=6),
 			torch.nn.ReLU(),
 			torch.nn.MaxPool2d(2,stride=2)])
 
@@ -68,6 +76,7 @@ class LeNet(torch.nn.Module):
 				in_channels=6,
 				out_channels=16,
 				kernel_size=5),
+			torch.nn.BatchNorm2d(num_features=16),
 			torch.nn.ReLU(),
 			torch.nn.MaxPool2d(2,stride=2)])
 
@@ -76,6 +85,7 @@ class LeNet(torch.nn.Module):
 				in_features=16*5*5,
 				out_features=120,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=120),
 			torch.nn.ReLU()])
 
 		self.fully_connected_2 = torch.nn.Sequential(*[
@@ -83,6 +93,7 @@ class LeNet(torch.nn.Module):
 				in_features=120,
 				out_features=84,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=84),
 			torch.nn.ReLU()])
 
 		self.fully_connected_3 = torch.nn.Sequential(*[
@@ -90,6 +101,7 @@ class LeNet(torch.nn.Module):
 				in_features=84,
 				out_features=10,
 				bias=True),
+			torch.nn.BatchNorm1d(num_features=10),
 			torch.nn.Sigmoid()])
 
 	def forward(self,input_tensor):

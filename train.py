@@ -9,15 +9,16 @@ import model
 import dataset
 import utils
 import math_funcs
+import validation
 
 def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,epochs,last_checkpoint,tensorboard_writer,lr,momentum):
 	''' Standard training with back propagation'''
 
 	# Initialize and load the dataloader
 	if dataset_type == "MNIST":
-		train_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
 	elif dataset_type == "CIFAR10":
-		train_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
 	else:
 		print("Dataset type not supported")
 		return
@@ -37,16 +38,17 @@ def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,e
 
 	# Initialize the optimizer and loss criterion
 	optimizer = torch.optim.SGD(dnn_model.parameters(),lr=lr,momentum=momentum)
-	scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,[5,10,15],gamma=0.01,verbose=True)
 	loss_criterion =  torch.nn.CrossEntropyLoss().to(device)
 
 	cur_epoch = 0
 	train_step = 0
 	val_step = 0
 
+	train_accuracy = 0.
 	train_loss = 0.
 	test_loss = 0.
 	validation_loss = 0.
+	validation_accuracy = 0.
 
 	# Load a previous checkpoint to resume training
 	if last_checkpoint != None:
@@ -65,10 +67,12 @@ def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,e
 
 	# Start Training
 	for epoch in range(cur_epoch,epochs):
+
 		progress_bar = tqdm.tqdm(enumerate(train_dataloader))
 		dnn_model.train()
 		loss_criterion.train()
 		progress_bar.set_description("Epoch: "+str(epoch)+" Avg loss of entire dataset: "+str(train_loss))
+
 		for batch_idx,(data,target) in progress_bar:
 			data = data.to(device)
 			target = target.to(device)
@@ -91,9 +95,18 @@ def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,e
 			del output
 			del loss
 			torch.cuda.empty_cache()
-		# validation_loss = compute_validation_loss()
-		# tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
-		# val_step += 1
+
+		train_accuracy,_ = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type,device)
+
+		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type,device)
+		tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
+		val_step += 1
+
+		print("\nEpoch:               "+str(epoch))
+		print("Training Loss:       "+str(train_loss))
+		print("Training Accuracy:   "+str(train_accuracy))
+		print("Validation Loss:     "+str(validation_loss))
+		print("Validation Accuracy: "+str(validation_accuracy)+"\n")
 
 		# Save the weights at the end of the each epoch
 		checkpoint_file = "Standard_" + model_type+"_"+dataset_type+"_"+"_Checkpoint_"+str(epoch)+".pt"
@@ -112,16 +125,14 @@ def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,e
 		del checkpoint
 		torch.cuda.empty_cache()
 
-		scheduler.step()
-
 def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,epochs,last_checkpoint,tensorboard_writer,lr,momentum):
 	''' HSIC Bottleneck method of training '''
 
 	# Initialize and load the dataloader
 	if dataset_type == "MNIST":
-		train_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
 	elif dataset_type == "CIFAR10":
-		train_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
 	else:
 		print("Dataset type not supported")
 		return
@@ -143,22 +154,21 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 	idx_range = []
 	it = 0
 
-	dnn_model.eval()
-	_, hidden_acts = dnn_model(torch.rand(128,1,28,28).to(device))
-
-	for i in range(len(hidden_acts)):
+	for i in range(dnn_model.number_of_hidden_units):
 		idx_range.append(np.arange(it,it+2).tolist())
 		it += 2
 		params,named_params = utils.get_layer_parameters(model=model,idx_range=idx_range[i])
-		exec('optimizer_'+str(i) + ' = torch.optim.Adam(params,lr=learning_rate,momentum=0.9,weight_decay=0.001)')
+		exec('optimizer_'+str(i) + ' = torch.optim.SGD(params,lr=learning_rate,momentum=0.9)')
 
 	cur_epoch = 0
 	train_step = 0
 	val_step = 0
 
+	train_accuracy = 0.
 	train_loss = 0.
 	test_loss = 0.
 	validation_loss = 0.
+	validation_accuracy = 0.
 
 	# HSIC Variables
 	beta = 7.0
@@ -167,17 +177,12 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 	# Load a previous checkpoint to resume training
 	if last_checkpoint:
 		dnn_model.load_state_dict(last_checkpoint["model"])
-		optimizer.load_state_dict(last_checkpoint["optimizer"])
 		cur_epoch = last_checkpoint["epoch"]
 		train_loss = last_checkpoint["train_loss"]
 		validation_loss = last_checkpoint["validation_loss"]
 		test_loss = last_checkpoint["test_loss"]
 		train_step = last_checkpoint["tensorboard_train_step"]
 		val_step = last_checkpoint["tensorboard_val_step"]
-
-		#Initialize the new lr to optimizer
-		for groups in optimizer.param_groups:
-			groups["lr"] = lr
 
 	# Start training code
 	for epoch in range(cur_epoch,epochs):
@@ -199,7 +204,7 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 
 			for i in range(len(hidden_acts)):
 				output, hidden_acts = model(data)
-				exec('optimizer_'+str(i)+".zero_grad")
+				exec('optimizer_'+str(i)+".zero_grad()")
 
 				hidden_acts[i] = hidden_acts[i].view(-1,np.prod(hidden_acts[i].size()[1:]))
 				hsic_zx, hsix_yz = math_funcs.HSIC_objective(hidden_acts[i],h_data,h_target,sigma)
@@ -221,16 +226,22 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 			del loss
 			torch.cuda.empty_cache()
 
-		# validation_loss = compute_validation_loss()
-		# tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
-		# val_step += 1
+		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type)
+		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type)
+		tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
+		val_step += 1
+
+		print("\nEpoch:               "+str(epoch))
+		print("Training Loss:       "+str(train_loss))
+		print("Training Accuracy:   "+str(train_accuracy))
+		print("Validation Loss:     "+str(validation_loss))
+		print("Validation Accuracy: "+str(validation_accuracy)+"\n")
 
 		# Save the weights at the end of the each epoch
 		checkpoint_file = "HSIC_" + model_type+"_"+dataset_type+"_"+"_Checkpoint_"+str(epoch)+".pt"
 		
 		checkpoint = {}
 		checkpoint["model"] = dnn_model.state_dict()
-		checkpoint["optimizer"] = optimizer.state_dict()
 		checkpoint["train_loss"] = train_loss
 		checkpoint["validation_loss"] = validation_loss
 		checkpoint["test_loss"] = test_loss
@@ -247,9 +258,9 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 
 	# Initialize and load the dataloader
 	if dataset_type == "MNIST":
-		train_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_mnist(dataset_dir,batch_size)
 	elif dataset_type == "CIFAR10":
-		train_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
+		train_dataloader,val_dataloader,test_datalaoder = dataset.load_cifar10(dataset_dir,batch_size)
 	else:
 		print("Dataset type not supported")
 		return
@@ -278,6 +289,7 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 	train_loss = 0.
 	test_loss = 0.
 	validation_loss = 0.
+	validation_accuracy = 0.
 
 	# Meta-Cognitive parameters
 	initial_threshold = 1.
@@ -310,6 +322,7 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 
 		for batch_idx,(data,target) in progress_bar:
 			data = data.to(device)
+			target = utils.to_categorical(target)
 			target = target.to(device)
 
 			output, _ = dnn_model(data)
@@ -331,9 +344,17 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 			del output
 			del loss
 			torch.cuda.empty_cache()
-		# validation_loss = compute_validation_loss()
-		# tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
-		# val_step += 1
+
+		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type)
+		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type)
+		tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
+		val_step += 1
+
+		print("\nEpoch:               "+str(epoch))
+		print("Training Loss:       "+str(train_loss))
+		print("Training Accuracy:   "+str(train_accuracy))
+		print("Validation Loss:     "+str(validation_loss))
+		print("Validation Accuracy: "+str(validation_accuracy)+"\n")
 
 		# Save the weights at the end of the each epoch
 		checkpoint_file = "Sample_deletion_" + model_type+"_"+dataset_type+"_"+"_Checkpoint_"+str(epoch)+".pt"
@@ -362,7 +383,7 @@ def main():
 	device = "cuda"
 	epochs = 20
 	last_checkpoint = None
-	lr = 0.1
+	lr = 0.01
 	momentum = 0.9
 	tensorboard_writer = SummaryWriter(f'logs/loss')
 

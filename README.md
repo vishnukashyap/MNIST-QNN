@@ -1,14 +1,14 @@
 # MNIST-QNN
-Training a Simple Quantized Neural Network using Pytorch and brevitas
+## Training a Simple Quantized Neural Network using Pytorch and brevitas
 
-Packages required:
+### Packages required:
 	- pytorch
 	- torchvision
 	- brevitas
 	- tqdm
 	- tensorboard
 
-Folder Structure:
+### Folder Structure:
 	root
 		- dataset
 			- MNIST (will be downloaded by torch if it's not already preset)

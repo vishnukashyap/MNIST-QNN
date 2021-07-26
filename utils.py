@@ -30,3 +30,53 @@ def selective_sampling_outputs(output,target,threshold):
 	output[indices] = target[indices]
 
 	return output
+
+def get_classification_accuracy(output,target):
+	'''
+		This function returns the number of correct predictions and the total number of predictions
+	'''
+	_ , output_idx = torch.topk(output,k=1,dim=1)
+	output_idx = output_idx.squeeze(1)
+
+	correct = (output_idx==target).sum().item()
+
+	total = int(target.shape[0])
+
+	return int(correct),total
+
+def compute_model_accuracy(validation_dataloader,model,model_type,device):
+	'''
+		This function calculates the validation accuracy and loss of the provided model on the given dataset
+	'''
+	model.eval()
+
+	loss_criterion = torch.nn.CrossEntropyLoss()
+
+	with torch.no_grad():
+
+		correct = 0.
+		total = 0.
+		total_loss = 0.
+		count = 0
+
+		for batch_idx,(data,target) in enumerate(validation_dataloader):
+			data = data.to(device)
+			target = target.to(device)
+
+			if model_type ==  "Linear" or model_type == "qnn_Linear":
+				data = data.reshape(data.shape[0],-1)
+
+			output,_ = model(data)
+
+			loss = loss_criterion(output,target)
+			batch_correct,batch_total = get_classification_accuracy(output,target)
+
+			correct += batch_correct
+			total += batch_total
+			
+			total_loss = (count*total_loss + loss.item())/(count+1)
+			count += 1
+
+		accuracy = (correct/total)*100
+
+		return accuracy,total_loss
