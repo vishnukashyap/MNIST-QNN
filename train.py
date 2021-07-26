@@ -9,7 +9,6 @@ import model
 import dataset
 import utils
 import math_funcs
-import validation
 
 def train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,epochs,last_checkpoint,tensorboard_writer,lr,momentum):
 	''' Standard training with back propagation'''
