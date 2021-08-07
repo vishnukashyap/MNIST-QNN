@@ -1,0 +1,37 @@
+# This file contains the configuration for the training #
+
+# model_type: this indicates the types of models that can be trained #
+# the types of models are Linear , LeNet , qnn_Linear , qnn_LeNet #
+model_type : "Linear"
+
+# dataset_type: this indicates the types of datasets that the model can be trained on #
+# the datasets which can be included here are MNIST and CIFAR10 #
+dataset_type : "MNIST"
+
+# dataset_dir: this is the path to the directory that contains the dataset #
+dataset_dir : "./datasets"
+
+# checkpoint_dir: this is the path to the directory where the weights should be stored #
+checkpoint_dir : "./weights"
+
+# batch_size: the batch size for training the model #
+batch_size : 128
+
+# device: the device on which the training is supposed to take place #
+device : "cuda"
+
+# epochs: the total number of epochs that the model is to be trained for #
+epochs : 20
+
+# last_checkpoint_path: the path to checkpoint from where training is to be resumed,this value should be null if there isn't a checkpoint to resume training from #
+last_checkpoint_path : null
+
+# lr: the learning rate of for training #
+lr : 0.01
+
+# momentume: the momentum for the training optimizer #
+momentum : 0.9
+
+# train_type: the method using which the model is to be trained #
+# the types of training can be standard, hsic, sample_deletion #
+train_type : "standard"

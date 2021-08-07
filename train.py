@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 import tqdm
+import yaml
 from torch.utils.tensorboard import SummaryWriter
 
 import qnn_model
@@ -156,8 +157,8 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 	for i in range(dnn_model.number_of_hidden_units):
 		idx_range.append(np.arange(it,it+2).tolist())
 		it += 2
-		params,named_params = utils.get_layer_parameters(model=model,idx_range=idx_range[i])
-		exec('optimizer_'+str(i) + ' = torch.optim.SGD(params,lr=learning_rate,momentum=0.9)')
+		params,named_params = utils.get_layer_parameters(model=dnn_model,idx_range=idx_range[i])
+		exec('optimizer_'+str(i) + ' = torch.optim.SGD(params,lr=lr,momentum=momentum)')
 
 	cur_epoch = 0
 	train_step = 0
@@ -188,7 +189,6 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 
 		progress_bar = tqdm.tqdm(enumerate(train_dataloader))
 		dnn_model.train()
-		loss_criterion.train()
 		progress_bar.set_description("Epoch: "+str(epoch)+" Avg loss of entire dataset: "+str(train_loss))
 
 		for batch_idx,(data,target) in progress_bar:
@@ -196,13 +196,13 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 			target = target.to(device)
 
 			h_target = target.view(-1,1)
-			h_target = utils.to_categorical(h_target,num_classes)
+			h_target = utils.to_categorical(h_target,10)
 			h_data = data.view(-1,np.prod(data.size()[1:]))
 
-			output,hidden_acts = model(data)
+			output,hidden_acts = dnn_model(data)
 
 			for i in range(len(hidden_acts)):
-				output, hidden_acts = model(data)
+				output, hidden_acts = dnn_model(data)
 				exec('optimizer_'+str(i)+".zero_grad()")
 
 				hidden_acts[i] = hidden_acts[i].view(-1,np.prod(hidden_acts[i].size()[1:]))
@@ -317,11 +317,11 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 		loss_criterion.train()
 		progress_bar.set_description("Epoch: "+str(epoch)+" Avg loss of entire dataset: "+str(train_loss))
 
-		current_threshold = initial_threshold*torch.exp(-rate_of_threshold_decay*epoch)
+		current_threshold = initial_threshold*np.exp(-rate_of_threshold_decay*epoch)
 
 		for batch_idx,(data,target) in progress_bar:
 			data = data.to(device)
-			target = utils.to_categorical(target)
+			target = utils.to_categorical(target,10)
 			target = target.to(device)
 
 			output, _ = dnn_model(data)
@@ -374,19 +374,24 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 
 
 def main():
-	model_type = "Linear"
-	dataset_type = "MNIST"
-	dataset_dir = "./datasets"
-	checkpoint_dir = "./weights"
-	batch_size = 128
-	device = "cuda"
-	epochs = 20
-	last_checkpoint = None
-	lr = 0.01
-	momentum = 0.9
-	tensorboard_writer = SummaryWriter(f'logs/loss')
+	
+	config_file = open("./config.yaml","r")
+	config_dict = yaml.load(config_file,Loader=yaml.FullLoader)
 
-	train_type = "standard"
+	model_type = config_dict["model_type"]
+	dataset_type = config_dict["dataset_type"]
+	dataset_dir = config_dict["dataset_dir"]
+	checkpoint_dir = config_dict["checkpoint_dir"]
+	batch_size = config_dict["batch_size"]
+	device = config_dict["device"]
+	epochs = config_dict["epochs"]
+	last_checkpoint_dir = config_dict["last_checkpoint_path"]
+	last_checkpoint = torch.load(last_checkpoint_dir) if last_checkpoint_dir != None else None
+	train_type = config_dict["train_type"]
+	lr = config_dict["lr"]
+	momentum = config_dict["momentum"]
+
+	tensorboard_writer = SummaryWriter(f'logs/loss')
 
 	if train_type == "standard":
 		train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,device,epochs,last_checkpoint,tensorboard_writer,lr,momentum)
