@@ -6,7 +6,7 @@ model_type : "Linear"
 
 # dataset_type: this indicates the types of datasets that the model can be trained on #
 # the datasets which can be included here are MNIST and CIFAR10 #
-dataset_type : "MNIST"
+dataset_type : "CIFAR10"
 
 # dataset_dir: this is the path to the directory that contains the dataset #
 dataset_dir : "./datasets"
@@ -21,7 +21,7 @@ batch_size : 128
 device : "cuda"
 
 # epochs: the total number of epochs that the model is to be trained for #
-epochs : 20
+epochs : 10
 
 # last_checkpoint_path: the path to checkpoint from where training is to be resumed,this value should be null if there isn't a checkpoint to resume training from #
 last_checkpoint_path : null

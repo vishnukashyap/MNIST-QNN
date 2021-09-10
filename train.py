@@ -171,7 +171,7 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 	validation_accuracy = 0.
 
 	# HSIC Variables
-	beta = 7.0
+	beta = 10
 	sigma = None
 
 	# Load a previous checkpoint to resume training
@@ -199,6 +199,9 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 			h_target = utils.to_categorical(h_target,10)
 			h_data = data.view(-1,np.prod(data.size()[1:]))
 
+			if model_type == "Linear" or model_type == "qnn_Linear":
+				data = data.reshape(-1,np.prod(data.shape[1:]))
+
 			output,hidden_acts = dnn_model(data)
 
 			for i in range(len(hidden_acts)):
@@ -206,9 +209,10 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 				exec('optimizer_'+str(i)+".zero_grad()")
 
 				hidden_acts[i] = hidden_acts[i].view(-1,np.prod(hidden_acts[i].size()[1:]))
-				hsic_zx, hsix_yz = math_funcs.HSIC_objective(hidden_acts[i],h_data,h_target,sigma)
+				hsic_zx, hsic_yz = math_funcs.HSIC_objective(hidden_acts[i],h_data,h_target,sigma)
 
-				loss = hsic_zx - beta*hsix_yz
+				loss = hsic_zx - beta*hsic_yz
+				progress_bar.set_description("Epoch: "+str(epoch)+" Batch index: "+str(batch_idx)+" Batch-wise Training Loss: "+str(loss.item())+" HSIC_ZX: "+str(hsic_zx.item())+" HSIC_YZ: "+str(hsic_yz.item()))
 				loss.backward()
 
 				exec('optimizer_'+str(i)+'.step()')
@@ -219,14 +223,14 @@ def hsic_train(dataset_type,dataset_dir,checkpoint_dir,model_type,batch_size,dev
 			del hidden_acts
 			del h_target
 			del h_data
-			del hsix_yz
+			del hsic_yz
 			del hsic_zx
 			del output
 			del loss
 			torch.cuda.empty_cache()
 
-		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type)
-		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type)
+		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type,device)
+		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type,device)
 		tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
 		val_step += 1
 
@@ -291,8 +295,8 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 	validation_accuracy = 0.
 
 	# Meta-Cognitive parameters
-	initial_threshold = 1.
-	rate_of_threshold_decay = -0.0347
+	initial_threshold = 0.5
+	rate_of_threshold_decay = -0.161
 
 	# Load a previous checkpoint to resume training
 	if last_checkpoint:
@@ -324,11 +328,13 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 			target = utils.to_categorical(target,10)
 			target = target.to(device)
 
+			if model_type == "Linear" or model_type == "qnn_Linear":
+				data = data.reshape(-1,np.prod(data.shape[1:]))
+
 			output, _ = dnn_model(data)
 
-			output = utils.selective_sampling_outputs(output,target,current_threshold)
+			loss = utils.selective_sampling_outputs(output,target,current_threshold,loss_criterion)
 
-			loss = loss_criterion(output,target)
 			loss.backward()
 			progress_bar.set_description("Epoch: "+str(epoch)+" Batch index: "+str(batch_idx)+" Batch-wise Training Loss: "+str(loss.item()))
 
@@ -344,8 +350,8 @@ def sample_deletion_training(dataset_type,dataset_dir,checkpoint_dir,model_type,
 			del loss
 			torch.cuda.empty_cache()
 
-		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type)
-		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type)
+		train_accuracy, train_loss = utils.compute_model_accuracy(train_dataloader,dnn_model,model_type,device)
+		validation_accuracy,validation_loss = utils.compute_model_accuracy(val_dataloader,dnn_model,model_type,device)
 		tensorboard_writer.add_scalar("Validation loss",(validation_loss),global_step=val_step)
 		val_step += 1
 

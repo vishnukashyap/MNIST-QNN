@@ -22,15 +22,15 @@ def load_cifar10(dataset_dir,batch_size):
 	'''
 		Load the train and test data laoder for cifar 10 dataset
 	'''
-	train_transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),torchvision.transforms.Normalize((0.49139968, 0.48215841, 0.44653091),(0.24703223, 0.24348513, 0.26158784))])
-	test_transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),torchvision.transforms.Normalize((0.49421428, 0.48513139, 0.45040909),(0.24665252, 0.24289226, 0.26159238))])
+	train_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.49139968, 0.48215841, 0.44653091),(0.24703223, 0.24348513, 0.26158784))])
+	test_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.49421428, 0.48513139, 0.45040909),(0.24665252, 0.24289226, 0.26159238))])
 
-	raw_train_dataset = torchvision.datasets.CIFAR10(dataset_dir,train=True,download=True,transform=train_transform)
-	raw_test_dataset = torchvision.datasets.CIFAR10(dataset_dir,train=False,download=True,transform=test_transform)
+	raw_train_dataset = datasets.CIFAR10(dataset_dir,train=True,download=True,transform=train_transform)
+	raw_test_dataset = datasets.CIFAR10(dataset_dir,train=False,download=True,transform=test_transform)
 
 	train_val_split = 0.9
 
-	train_dataset, val_dataset = toch.utils.data.random_split(raw_train_dataset)
+	train_dataset, val_dataset = torch.utils.data.random_split(raw_train_dataset,[int(len(raw_train_dataset)*(train_val_split)),int(len(raw_train_dataset))-int(len(raw_train_dataset)*(train_val_split))])
 
 	kwargs = {"num_workers":4,"pin_memory":True}
 	train_dataloader = torch.utils.data.DataLoader(train_dataset,batch_size=batch_size,shuffle=True,**kwargs)

@@ -18,7 +18,7 @@ def to_categorical(y,num_classes):
 	'''
 	return torch.squeeze(torch.eye(num_classes)[y])
 
-def selective_sampling_outputs(output,target,threshold):
+def selective_sampling_outputs(output,target,threshold,loss_criterion):
 	'''
 		Selectively sample the outputs which would be back-propagated based on the threshold
 	'''
@@ -27,9 +27,17 @@ def selective_sampling_outputs(output,target,threshold):
 	indices = error < threshold
 	indices = indices.squeeze(1)
 
-	output[indices] = target[indices]
+	sampled_output =  torch.empty(output.size()).to(output.device.type)
 
-	return output
+	for i in range(output.size()[0]):
+		if indices[i]:
+			sampled_output[i] = target[i]
+		else:
+			sampled_output[i] = output[i]
+
+	loss = loss_criterion(sampled_output,target)
+
+	return loss
 
 def get_classification_accuracy(output,target):
 	'''
