@@ -97,7 +97,7 @@ class LeNet(nn.Module):
 			in_channels=input_channels,
 			out_channels=6,
 			kernel_size=5,
-			weight_quant=QuantType.BINARY,
+			weight_quant_type=QuantType.BINARY,
 			return_quant_tensor=False)
 
 		self.batchnorm1 = torch.nn.BatchNorm2d(num_features=6)
@@ -111,7 +111,7 @@ class LeNet(nn.Module):
 			in_channels=6,
 			out_channels=16,
 			kernel_size=5,
-			weight_quant=QuantType.BINARY,
+			weight_quant_type=QuantType.BINARY,
 			return_quant_tensor=False)
 
 		self.batchnorm2 = torch.nn.BatchNorm2d(num_features=16)
