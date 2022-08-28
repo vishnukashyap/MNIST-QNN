@@ -2,6 +2,7 @@ import torch
 
 dataset_input_channels_linear = {"MNIST":784,"CIFAR10":3072}
 dataset_input_channels_conv = {"MNIST":1,"CIFAR10":3}
+dataset_fc1_in_features = {"MNIST":16*4*4,"CIFAR10":16*5*5}
 
 '''
 	This file contains model definitions for the regular models
@@ -82,7 +83,7 @@ class LeNet(torch.nn.Module):
 
 		self.fully_connected_1 = torch.nn.Sequential(*[
 			torch.nn.Linear(
-				in_features=16*5*5,
+				in_features=dataset_fc1_in_features[dataset_name],
 				out_features=120,
 				bias=True),
 			torch.nn.BatchNorm1d(num_features=120),

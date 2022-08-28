@@ -7,6 +7,7 @@ from brevitas.inject.defaults import Int8ActPerTensorFloat
 
 dataset_input_channels_linear = {"MNIST":784,"CIFAR10":3072}
 dataset_input_channels_conv = {"MNIST":1,"CIFAR10":3}
+dataset_fc1_in_features = {"MNIST":16*4*4,"CIFAR10":16*5*5}
 
 '''
 	This file contains quantized model definitions 
@@ -122,7 +123,7 @@ class LeNet(nn.Module):
 			return_quant_tensor=False)
 
 		self.fc1 = qnn.QuantLinear(
-			in_features=16*5*5,
+			in_features=dataset_fc1_in_features[dataset_name],
 			out_features=120,
 			bias=True,
 			weight_quant_type=QuantType.BINARY,
